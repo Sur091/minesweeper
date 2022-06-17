@@ -1,5 +1,5 @@
 import pygame as py
-from random import random
+from number import random
 
 
 def draw_board(surface):
@@ -10,7 +10,7 @@ def draw_board(surface):
 
 
 class Box:
-    percent_of_bomb = 0.05  # 0.144
+    percent_of_bomb = 0.144
 
     def __init__(self, x, y):
         self.x = x
@@ -18,12 +18,15 @@ class Box:
         self.opened = False
         self.bomb = random() < Box.percent_of_bomb
         self.number = 0
+        self.special = False
 
     def show(self, surface):
         if not self.opened:
             py.draw.rect(surface, (255, 255, 255), py.Rect(self.x * tile, self.y * tile, tile, tile))
             py.draw.rect(surface, (0, 0, 0), py.Rect(self.x * tile, self.y * tile, tile, tile), 1)
         elif self.bomb:
+            if self.special:
+                py.draw.rect(surface, (100, 100, 250), py.Rect(self.x * tile, self.y * tile, tile, tile))
             center = self.x * tile + tile // 2, self.y * tile + tile // 2
             py.draw.circle(surface, (162, 20, 42), center, tile // 3)
         elif self.number > 0:
@@ -49,18 +52,40 @@ class Board:
             for b in a:
                 b.number = sum(1 for box in b.neighbours(lst) if box.bomb)
         self.board = lst
+        self.won = None
 
     def show(self, surface):
         for a in self.board:
             for b in a:
                 b.show(surface)
+        if self.won is not None:
+            string = "You" + " won" * self.won + " lost" * (not self.won)
+            font_ = py.font.Font('freesansbold.ttf', 50)
+            text = font_.render(string, True, (70, 220, 70))
+            surface.blit(text, (width // 2 - 102, height // 2 - 25))
+
+    def reveal(self):
+        for a in self.board:
+            for b in a:
+                b.opened = True
 
     def update(self):
+        if self.won is not None:
+            return
         for a in self.board:
             for b in a:
                 if b.opened and b.bomb:
-                    pass
-                    # print("Game Over")
+                    # You clicked the bomb, so you loose
+                    self.won = False
+                    self.reveal()
+                    b.special = True
+                    return
+        for a in self.board:
+            for b in a:
+                if not b.opened and not b.bomb:
+                    # It means the game is yet to end
+                    return
+        self.won = True
 
     def open(self, box, surface):
         box.opened = True
@@ -76,7 +101,7 @@ class Board:
 
 py.init()
 
-width, height = 600, 300
+width, height = 300, 300
 tile = 30
 window = py.display.set_mode((width, height))
 clock = py.time.Clock()
@@ -99,6 +124,8 @@ while running:
             pos = py.mouse.get_pos()
             x_, y_ = pos[0] // tile, pos[1] // tile
             player1.open(player1.board[x_][y_], window)
+            if player1.won is not None:
+                player1 = Board()
     player1.show(window)
     player1.update()
     py.display.update()
